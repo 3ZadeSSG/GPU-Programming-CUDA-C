@@ -82,7 +82,6 @@ int main()
 
 	euclidianDotProduct << <1, n >> > (dev_p1, dev_p2,dev_temp, dev_result);
 	cudaMemcpy(&euclidian_dot, dev_result, sizeof(dd), cudaMemcpyDeviceToHost);
-	.
 	dotProduct << <1, n >> > (dev_p1, dev_p2, dev_temp, dev_result);
 	cudaMemcpy(&vector_dot, dev_result, sizeof(dd), cudaMemcpyDeviceToHost);
 
