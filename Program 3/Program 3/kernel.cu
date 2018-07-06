@@ -12,7 +12,8 @@
 #define tileMAX 64
 #define beta 10
 #define delta 0.6
-#define random (rand() / (double)RAND_MAX)
+#define randomUV -1 + (rand() / (dd)RAND_MAX) *(1 - (-1));
+#define randomX 0 + (rand() / (dd)RAND_MAX) *(100 - 0);
 using namespace std;
 __global__ void vectorMultiplyUX(dd a[m][n], dd b[n][1], dd c[m][1]) {
 	int i = blockDim.x*blockIdx.x + threadIdx.x;
@@ -44,15 +45,15 @@ int main()
 	dd(*dev_U)[n],(*dev_V)[m], (*dev_X)[1], (*dev_UX)[1],(*dev_fUX)[1],(*dev_VfUX)[1],(*dev_gVfUX)[1];
 	for (int i = 0; i < m; i++) {
 		for (int j = 0; j < n; j++) {
-			U[i][j] = random;
+			U[i][j] = randomUV;
 		}
 	}
 	for (int i = 0; i < n; i++) {
-		X[i][0] = random;
+		X[i][0] = randomX;
 	}
 	for (int i = 0; i < p; i++) {
 		for (int j = 0; j < m; j++) {
-			V[i][j] = random;
+			V[i][j] = randomUV;
 		}
 	}
 	cudaMalloc((void**)&dev_U, m*n * sizeof(dd));
@@ -64,8 +65,8 @@ int main()
 	cudaMalloc((void**)&dev_gVfUX, p * 1 * sizeof(dd));
 
 	cudaMemcpy(dev_U, U, m*n * sizeof(dd), cudaMemcpyHostToDevice);
-	cudaMemcpy(dev_X, X, n*1* sizeof(dd), cudaMemcpyHostToDevice);
-	cudaMemcpy(dev_V, V, p*m* 1 * sizeof(dd), cudaMemcpyHostToDevice);
+	cudaMemcpy(dev_X, X, n * 1 * sizeof(dd), cudaMemcpyHostToDevice);
+	cudaMemcpy(dev_V, V, p*m * 1 * sizeof(dd), cudaMemcpyHostToDevice);
 
 	vectorMultiplyUX << <1, tileMAX >> > (dev_U, dev_X, dev_UX);   //UX
 	cudaMemcpy(UX, dev_UX, m * 1 * sizeof(dd), cudaMemcpyDeviceToHost);

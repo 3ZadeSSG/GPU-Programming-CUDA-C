@@ -8,9 +8,20 @@ For cosine distance: https://en.wikipedia.org/wiki/Cosine_similarity
 #include<iostream>
 #include<math.h>
 #include<iomanip>
+#include<random>
+#include<curand.h>
+#include<curand_kernel.h>
+#include<ctime>
 #define dd double
 #define n 24
 using namespace std;
+__global__ void initialize(dd *p1, dd*p2) {
+	int i = blockDim.x*blockIdx.x + threadIdx.x;
+	curandState state;
+	curand_init((unsigned long long)clock() + i, 0, 1, &state);
+	p1[i] = curand_uniform_double(&state);
+	p2[i] = curand_uniform_double(&state);
+}
 __global__ void euclidianDistance(dd *p1, dd *p2, dd *result,dd *temp) {
 	int i = blockDim.x*blockIdx.x + threadIdx.x;
 	*result = 0;
@@ -60,10 +71,9 @@ int main()
 	cudaMalloc((void**)&dev_p2, n * sizeof(dd)); //vector 2
 	cudaMalloc((void**)&dev_temp, n * sizeof(dd));  
 	cudaMalloc(&dev_result, sizeof(dd));
-	for (int i = 0; i < n; i++) {
-		p1[i] = rand() / (double)RAND_MAX;
-		p2[i] = rand() / (double)RAND_MAX;
-	}
+	initialize << <1, n >> > (dev_p1, dev_p2); //initialize vectors using parallel technique
+	cudaMemcpy(p1, dev_p1, n * sizeof(dd), cudaMemcpyDeviceToHost);
+	cudaMemcpy(p2, dev_p2, n * sizeof(dd), cudaMemcpyDeviceToHost);
 	cout << "\nVector 1: ";
 	for (int i = 0; i < n; i++) {
 		cout << setw(8) << setprecision(5) << p1[i] << " ";
@@ -74,8 +84,6 @@ int main()
 		cout <<setw(8)<<setprecision(5)<< p2[i] << " ";
 		//cout << p2[i] << " ";
 	}
-	cudaMemcpy(dev_p1, p1, n * sizeof(dd), cudaMemcpyHostToDevice); //copy vectors into device
-	cudaMemcpy(dev_p2, p2, n * sizeof(dd), cudaMemcpyHostToDevice);
 
 	euclidianDistance << <1, n>> > (dev_p1, dev_p2, dev_result,dev_temp);
 	cudaMemcpy(&euclidian_distance, dev_result,sizeof(dd), cudaMemcpyDeviceToHost); //copy euclidian distance from device to host
