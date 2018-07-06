@@ -1,3 +1,7 @@
+/*
+Calculate cosine distance, Manhattan distance and Euclidian Distance between two n-dimensional points considered as vectors.
+For cosine distance: https://en.wikipedia.org/wiki/Cosine_similarity
+*/
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 #include <stdio.h>
