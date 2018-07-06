@@ -1,0 +1,6 @@
+__global__ void initialize(dd *p1) {
+	int i = blockDim.x*blockIdx.x + threadIdx.x;
+	curandState state;
+	curand_init((unsigned long long)clock() + i, 0, 1, &state);
+	p1[i] = curand_uniform_double(&state);
+}
