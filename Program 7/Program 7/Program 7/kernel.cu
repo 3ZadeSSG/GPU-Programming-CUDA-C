@@ -12,6 +12,8 @@ Mention the parameters: number of processors used, execution time and memory uti
 #include<iostream>
 #define dd double
 #define n 4
+#define MAX 1
+#define MIN -1
 using namespace std;
 __global__ void matrixAdd(dd a[][n], dd b[][n], dd c[][n]) {
 	int i = blockDim.x*blockIdx.x + threadIdx.x;
@@ -44,8 +46,8 @@ int main()
 	cudaMalloc((void**)&dev_c, n*n * sizeof(dd));
 	for (int i = 0; i < n; i++) {
 		for (int j = 0; j < n; j++) {
-			a[i][j] = rand() / (dd)RAND_MAX;
-			b[i][j] = rand() / (dd)RAND_MAX;
+			a[i][j] = MIN + (rand() / (dd)RAND_MAX) *(MAX - MIN);
+			b[i][j] = MIN + (rand() / (dd)RAND_MAX) *(MAX - MIN);
 		}
 	}
 	cudaMemcpy(dev_a, a, n*n * sizeof(dd), cudaMemcpyHostToDevice);
