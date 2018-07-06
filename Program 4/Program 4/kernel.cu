@@ -5,7 +5,7 @@
 #include<math.h>
 #include<iomanip>
 #define dd double
-#define n 4
+#define n 24
 using namespace std;
 __global__ void euclidianDistance(dd *p1, dd *p2, dd *result,dd *temp) {
 	int i = blockDim.x*blockIdx.x + threadIdx.x;
@@ -34,18 +34,19 @@ __global__ void dotProduct(dd*a, dd*b, dd*c,dd *result) {  //for calculating a.b
 }
 __global__ void euclidianDotProduct(dd*a, dd*b, dd*c,dd*result) { //for calculating ||a||.||b||
 	int i = blockDim.x*blockIdx.x + threadIdx.x;
+	int j = blockDim.x*blockIdx.x + threadIdx.x;
 	c[i] = (a[i] * a[i]);
-	dd temp=0;
+	dd temp = 0;
 	for (int id = 0; id < n; id++) {
-		temp += c[i];
+		temp += c[id];
 	}
 	*result = sqrt(temp);
 	temp = 0;
-	c[i] = (b[i] * b[i]);
+	c[j] = (b[j] * b[j]);
 	for (int id = 0; id < n; id++) {
-		temp += c[i];
+		temp += c[id];
 	}
-	*result=sqrt(temp)*(*result);
+	*result = *result*sqrt(temp);
 }
 int main()
 {
@@ -76,11 +77,11 @@ int main()
 	cudaMemcpy(&euclidian_distance, dev_result,sizeof(dd), cudaMemcpyDeviceToHost); //copy euclidian distance from device to host
 	cout <<"\n\nEuclidian Distance:"<< euclidian_distance<<endl; //print euclidian distance
 
-	manhattanDistance << <1, n >> > (dev_p1, dev_p2, dev_result, dev_temp);
+	manhattanDistance << <1, n>> > (dev_p1, dev_p2, dev_result, dev_temp);
 	cudaMemcpy(&manhattan_distance, dev_result, sizeof(dd), cudaMemcpyDeviceToHost); //copy manhattan distance from device to host
 	cout << "\nManhattan Distance:" << manhattan_distance << endl; //print manhattan distance
 
-	euclidianDotProduct << <1, n >> > (dev_p1, dev_p2,dev_temp, dev_result);
+	euclidianDotProduct << <1, n>> > (dev_p1, dev_p2,dev_temp, dev_result);
 	cudaMemcpy(&euclidian_dot, dev_result, sizeof(dd), cudaMemcpyDeviceToHost);
 	dotProduct << <1, n >> > (dev_p1, dev_p2, dev_temp, dev_result);
 	cudaMemcpy(&vector_dot, dev_result, sizeof(dd), cudaMemcpyDeviceToHost);
