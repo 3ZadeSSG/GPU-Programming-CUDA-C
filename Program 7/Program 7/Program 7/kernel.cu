@@ -3,6 +3,9 @@ Design a parallel program in CUDA C++ platform for the following:
 Find the transpose, sum, difference, scalar and vector multiplications of matrix of parallel
 and randomly initialized with the number between -1.00 to +1.00. 
 Mention the parameters: number of processors used, execution time and memory utilization
+===============================================
+== Device: Asus Nvidia GTX 1080 Ti OC Edition==
+== Host: i5-6600K==============================
 */
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
@@ -10,11 +13,21 @@ Mention the parameters: number of processors used, execution time and memory uti
 #include<math.h>
 #include<iomanip>
 #include<iostream>
+#include<curand.h>
+#include<curand_kernel.h>
 #define dd double
 #define n 4
 #define MAX 1
 #define MIN -1
+#define ll unsigned long long
 using namespace std;
+__global__ void initializeMatrix(dd a[][n]) {
+	int i = threadIdx.x + blockDim.x*blockIdx.x;
+	int j = threadIdx.y + blockDim.y*blockIdx.y;
+	curandState state;
+	curand_init((ll)clock()+clock() + i +j+i, 0, 1, &state);
+	a[i][j] = (curand_uniform_double(&state)*(MAX - (MIN))) + (MIN);
+}
 __global__ void matrixAdd(dd a[][n], dd b[][n], dd c[][n]) {
 	int i = blockDim.x*blockIdx.x + threadIdx.x;
 	int j = blockDim.y*blockIdx.y + threadIdx.y;
@@ -44,16 +57,18 @@ int main()
 	cudaMalloc((void**)&dev_a, n*n * sizeof(dd));
 	cudaMalloc((void**)&dev_b, n*n * sizeof(dd));
 	cudaMalloc((void**)&dev_c, n*n * sizeof(dd));
-	for (int i = 0; i < n; i++) {
-		for (int j = 0; j < n; j++) {
-			a[i][j] = MIN + (rand() / (dd)RAND_MAX) *(MAX - MIN);
-			b[i][j] = MIN + (rand() / (dd)RAND_MAX) *(MAX - MIN);
-		}
-	}
-	cudaMemcpy(dev_a, a, n*n * sizeof(dd), cudaMemcpyHostToDevice);
-	cudaMemcpy(dev_b, b, n*n * sizeof(dd), cudaMemcpyHostToDevice);
-	dim3 block(n / 2, n / 2);  
-	dim3 thread(n/(n/2), n/(n/2));
+	 //dim3 parameters for initializing the matrices
+	dim3 block1(1, 1);  
+	dim3 thread1(n, n);
+	initializeMatrix << <block1, thread1 >> > (dev_a);
+	initializeMatrix << <block1, thread1 >> > (dev_b);
+	//copy initialize matrices into Host variables
+	cudaMemcpy(a, dev_a, n*n * sizeof(dd), cudaMemcpyDeviceToHost);
+	cudaMemcpy(b, dev_b, n*n * sizeof(dd), cudaMemcpyDeviceToHost);
+
+
+	dim3 block(n / 2, n / 2);
+	dim3 thread(n / (n / 2), n / (n / 2));
 	matrixAdd << <block, thread >> > (dev_a, dev_b, dev_c);
 	cudaMemcpy(c, dev_c, n*n * sizeof(dd), cudaMemcpyDeviceToHost);
 	cout<< "\nMatrix A: " << endl;
