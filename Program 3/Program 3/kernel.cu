@@ -1,20 +1,50 @@
+/* Tested on Device : Asus Nvidia GTX 1080 Ti OC Edition 
+  Host: i5-6600K
+*/
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 #include <stdio.h>
 #include<math.h>
 #include<iostream>
 #include<iomanip>
+#include<curand.h>
+#include<curand_kernel.h>
+#include<conio.h>
 #define dd double
 #define e 2.71828182845904523536
 #define p 4
 #define m 2
 #define n 3
-#define tileMAX 64
-#define beta 10
+#define MAX_X 10 //max value of X
+#define MIN_X 0  //min value of X
+#define MAX_UV 1 //max value of U and V
+#define MIN_UV -1 //min value of U and V
+#define ll unsigned long long 
+#define tileMAX 64 
+#define beta 10 
 #define delta 0.6
-#define randomUV -1 + (rand() / (dd)RAND_MAX) *(1 - (-1));
-#define randomX 0 + (rand() / (dd)RAND_MAX) *(100 - 0);
 using namespace std;
+__global__ void initializeParallelU(dd a[m][n]) {
+	int i = blockDim.x*blockIdx.x + threadIdx.x;
+	int j = blockDim.y*blockIdx.y + threadIdx.y;
+	curandState state;
+	curand_init((ll)clock()+i+j, 0, 1, &state);
+	a[i][j] = (curand_uniform_double(&state)*(MAX_UV-(MIN_UV)))+(MIN_UV);
+}
+__global__ void initializeParallelV(dd a[p][m]) {
+	int i = blockDim.x*blockIdx.x + threadIdx.x;
+	int j = blockDim.y*blockIdx.y + threadIdx.y;
+	curandState state;
+	curand_init((ll)clock() + i + j, 0, 1, &state);
+	a[i][j] = (curand_uniform_double(&state) * (MAX_UV-(MIN_UV))) + (MIN_UV);
+}
+__global__ void initializeParallelX(dd a[n][1]) {
+	int i = blockDim.x*blockIdx.x + threadIdx.x;
+	int j = blockDim.y*blockIdx.y + threadIdx.y;
+	curandState state;
+	curand_init((ll)clock() + i + j, 0, 1, &state);
+	a[i][j] = (curand_uniform_double(&state) * (MAX_X-MIN_X) )+ MIN_X;
+}
 __global__ void vectorMultiplyUX(dd a[m][n], dd b[n][1], dd c[m][1]) {
 	int i = blockDim.x*blockIdx.x + threadIdx.x;
 	int j = blockDim.y*blockIdx.y + threadIdx.y;
@@ -43,19 +73,6 @@ int main()
 {
 	dd U[m][n],V[p][m],X[n][1],UX[m][1],fUX[m][1],VfUX[p][1],gVfUX[p][1];
 	dd(*dev_U)[n],(*dev_V)[m], (*dev_X)[1], (*dev_UX)[1],(*dev_fUX)[1],(*dev_VfUX)[1],(*dev_gVfUX)[1];
-	for (int i = 0; i < m; i++) {
-		for (int j = 0; j < n; j++) {
-			U[i][j] = randomUV;
-		}
-	}
-	for (int i = 0; i < n; i++) {
-		X[i][0] = randomX;
-	}
-	for (int i = 0; i < p; i++) {
-		for (int j = 0; j < m; j++) {
-			V[i][j] = randomUV;
-		}
-	}
 	cudaMalloc((void**)&dev_U, m*n * sizeof(dd));
 	cudaMalloc((void**)&dev_X, n*1 * sizeof(dd));
 	cudaMalloc((void**)&dev_V, p * m * sizeof(dd));
@@ -64,23 +81,32 @@ int main()
 	cudaMalloc((void**)&dev_VfUX, p * 1 * sizeof(dd));
 	cudaMalloc((void**)&dev_gVfUX, p * 1 * sizeof(dd));
 
-	cudaMemcpy(dev_U, U, m*n * sizeof(dd), cudaMemcpyHostToDevice);
-	cudaMemcpy(dev_X, X, n * 1 * sizeof(dd), cudaMemcpyHostToDevice);
-	cudaMemcpy(dev_V, V, p*m * 1 * sizeof(dd), cudaMemcpyHostToDevice);
+	dim3 block(1, 1);  //single 1 dim3 block with multiple threads, max thread in a block can be 1024
+	dim3 thread(m, n);  //dim3 for U
+	initializeParallelU << <block,thread>> > (dev_U);
+	dim3 thread2(p, m);  //dim3 for V
+	initializeParallelV << <block, thread2 >> > (dev_V);
+	dim3 thread3(n, 1); //dim3 for X
+	initializeParallelX << <block, thread3 >> > (dev_X);
 
+	/*Copy parallely initialized reuslt into the Host matrices*/
+	cudaMemcpy(U, dev_U, m*n * sizeof(dd), cudaMemcpyDeviceToHost);
+	cudaMemcpy(V, dev_V, p* m * sizeof(dd), cudaMemcpyDeviceToHost);
+	cudaMemcpy(X, dev_X, n * 1 * sizeof(dd), cudaMemcpyDeviceToHost);
+
+	/*Operations according to formula and their result is copied into the host variables*/
 	vectorMultiplyUX << <1, tileMAX >> > (dev_U, dev_X, dev_UX);   //UX
 	cudaMemcpy(UX, dev_UX, m * 1 * sizeof(dd), cudaMemcpyDeviceToHost);
-
 	fX << <1, tileMAX >> > (dev_UX, dev_fUX);						//f(UX)
 	cudaMemcpy(fUX, dev_fUX, m * 1 * sizeof(dd), cudaMemcpyDeviceToHost);
-
 	vectorMultiplyVfUX << <1, 8 >> > (dev_V, dev_fUX, dev_VfUX);	//Vf(UX)
 	cudaMemcpy(VfUX, dev_VfUX, p * 1 * sizeof(dd), cudaMemcpyDeviceToHost);
-
 	gX << <1, tileMAX >> > (dev_VfUX, dev_gVfUX);					//Z=g(Vf(UX))
 	cudaMemcpy(gVfUX, dev_gVfUX, p * 1 * sizeof(dd), cudaMemcpyDeviceToHost);
+	cudaMemcpy(U, dev_U, m*n * sizeof(dd), cudaMemcpyDeviceToHost);
+	cudaMemcpy(X, dev_X, n * 1 * sizeof(dd), cudaMemcpyDeviceToHost);
 
-
+	/*Following will print the content of initial matrices as well as result*/
 	cout << "\nU: \n";
 	for (int i = 0; i < m; i++) {
 		cout <<setw(8)<< " ";
