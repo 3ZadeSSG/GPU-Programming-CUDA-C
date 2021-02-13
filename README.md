@@ -5,7 +5,7 @@ This repo contains following programs that are written using CUDA C++ to run on 
 
 1. Finding row and column sum of a matrix, finding column minimum and row maximum of matrix
 2. Single point crossover
-3. Evaluation of a given following function: 
+3. Evaluation of a given mathematical function
 4. Calculation of cosine distance, Manhattan distance and Euclidian Distance between two n-dimensional points considered as vectors
 5. Bubble Sort
 6. Merge Sort
